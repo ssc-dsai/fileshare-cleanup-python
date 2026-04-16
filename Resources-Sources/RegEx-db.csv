@@ -1,0 +1,2 @@
+regex_id,rule_name,pattern,category,target_field,target_value,description,language,priority,status,example_text
+1,PRI_CIDP_Number_Extractor,"(?i)(Personal Record Identifier|PERSONAL RECORD IDENTIFIER|Code d'identification de dossier personnel|CODE D'IDENTIFICATION DE DOSSIER PERSONNEL|CIDP|PRI)[ :.]?\s*(\d{3}[- .]?\d{3}[- .]?\d{3})",Personal Identifier Extraction,personal_information,Yes,"Captures Canadian PRI / CIDP numbers with flexible separators.",en/fr,5,Activate,PRI 028 200 085

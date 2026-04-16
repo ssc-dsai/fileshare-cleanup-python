@@ -1,0 +1,39 @@
+# PyCharm / JetBrains
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs & temporary files
+*.log
+logs/
+Litigation/logs/
+classification_results/logs/
+extracted_texts/logs/
+
+# Large files / models (do NOT upload)
+*.bin
+*.pth
+*.onnx
+sentence_transformers/
+ollama/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary / runtime
+*.tmp
+*.bak
