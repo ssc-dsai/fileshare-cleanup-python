@@ -24,7 +24,7 @@ A complete end-to-end Python pipeline for ingesting, deduplicating, classifying,
 > **`project_config.py` is the single source of truth** for all directory paths and settings.
 
 All scripts import paths from this file.  
-**Never hard-code paths** in individual scripts.
+**I have hard-coded paths, change for deployment setup**
 
 **Key directories defined here:**
 - `SOURCE_DOCS_DIR` → `C:\USER\Synthetic_Docs`
@@ -43,7 +43,20 @@ Ollama running with models:
 qwen2.5:7b
 qwen2.5vl:7b
 
-Python environment with required packages (see requirements.txt)
+Requirements & Installation
+Two requirements files are provided:
+
+requirements.txt → Clean & curated list for normal team use (recommended)
+requirements-generated.txt → Full pip freeze output from the development environment (useful for vulnerability scanning, auditing, and debugging)
+
+Install using the curated file:
+Bashpip install -r requirements.txt
+After installing spaCy models (run once):
+Bashpython -m spacy download en_core_web_sm
+python -m spacy download fr_core_news_sm
+For security / vulnerability checks, use:
+Bashpip-audit -r requirements-generated.txt
+
 Windows only for metadata injection (uses win32com for native Office properties)
 
 
