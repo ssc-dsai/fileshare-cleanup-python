@@ -2,7 +2,9 @@
 Classification/semantic/semantic_core.py
 
 Main semantic classification coordinator.
-TITLE IS NOW ONLY SOURCED FROM INGESTION (prepended [Generated Title]).
+- Uses FULL descriptions for semantic matching (not summaries)
+- Generates up to 500-character matching excerpts
+- Always enforces static metadata fields
 """
 
 import logging
@@ -38,6 +40,10 @@ def semantic_classify(
     original_path: Path | str | None = None,
     image_path: Path | str | None = None,
 ) -> dict:
+    """
+    Main classification function.
+    Returns a complete row with excerpts from full descriptions.
+    """
     if not text or not text.strip():
         return _minimal_unknown_row(original_path)
 
@@ -49,7 +55,7 @@ def semantic_classify(
         "text_length": len(text),
     }
 
-    # Load hierarchy
+    # Load hierarchy if not provided
     if hierarchy_df is None:
         try:
             hierarchy_df = pd.read_csv(HIERARCHY_CSV, encoding="utf-8")
@@ -62,7 +68,7 @@ def semantic_classify(
     if regex_overrides:
         metadata.update(regex_overrides)
 
-    # 2. Lightweight enrichers — TITLE IS NO LONGER GENERATED HERE
+    # 2. Lightweight enrichers
     metadata.update(enrich_language(text))
     metadata.update(enrich_sensitivity(text, image_path=image_path))
 
@@ -75,15 +81,17 @@ def semantic_classify(
     if "personal_information" not in metadata:
         metadata.update(enrich_pii(text))
 
-    # 5. Embedding classification
+    # 5. Semantic classification with full descriptions + 500-char excerpts
     if embedder is not None and not hierarchy_df.empty and len(text.strip()) > 50:
         try:
             classif_result = semantic_match_with_embedding(
                 text=text,
                 hierarchy_df=hierarchy_df,
                 embedder=embedder,
+                excerpt_length=500
             )
-            classif_result.pop("Document Type / Type de document", None)  # protect it
+            # Remove any accidental override of Document Type
+            classif_result.pop("Document Type / Type de document", None)
             metadata.update(classif_result)
         except Exception as e:
             logger.error(f"Embedding classification failed: {e}")
@@ -91,17 +99,23 @@ def semantic_classify(
     else:
         metadata.update(_fallback_unknown_classification())
 
-    # Static defaults
+    # === STATIC FIELDS – ALWAYS ENFORCED ===
+    metadata["Disposition Authorization / Autorisation de disposition"] = "2021/005"
+    metadata["Technical Environment | Environnement technique"] = "Microsoft's Distributed File System (DFS)"
+
+    # Default safety fields
     metadata.setdefault("Litigation_hold", "No")
     metadata.setdefault("Archival_value", "No")
     metadata.setdefault("critical_business_content", "No")
 
+    # Build final row in correct column order
     final_row = {col: metadata.get(col, "") for col in COLUMNS_ORDER}
 
     return final_row
 
 
 def _fallback_unknown_classification() -> dict:
+    """Fallback when semantic classification fails or text is too short."""
     return {
         "Function_EN": "Unknown",
         "Function_FR": "Inconnu",
@@ -111,7 +125,7 @@ def _fallback_unknown_classification() -> dict:
         "Business_Process_FR": "Inconnu",
         "Function_Match_Excerpt": "",
         "Sub_Function_Match_Excerpt": "",
-        "Records_Match_Excerpt": "",
+        "BProcess-Match_Excerpt": "",
         "overall_confidence": 0.0,
         "confidence_category": "Low",
         "needs_review": "Yes",
@@ -119,8 +133,10 @@ def _fallback_unknown_classification() -> dict:
 
 
 def _minimal_unknown_row(original_path=None) -> dict:
+    """Minimal fallback row when no usable text is provided."""
+    filename = Path(original_path).name if original_path else "unknown_document"
     return {
-        "filename": Path(original_path).name if original_path else "unknown_document",
+        "filename": filename,
         "original_path": str(original_path) if original_path else "",
         "text_length": 0,
         "language_detected": "und",
@@ -131,4 +147,9 @@ def _minimal_unknown_row(original_path=None) -> dict:
         "overall_confidence": 0.0,
         "confidence_category": "Low",
         "needs_review": "Yes",
+        "Disposition Authorization / Autorisation de disposition": "2021/005",
+        "Technical Environment | Environnement technique": "Microsoft's Distributed File System (DFS)",
+        "Function_Match_Excerpt": "",
+        "Sub_Function_Match_Excerpt": "",
+        "BProcess-Match_Excerpt": "",
     }

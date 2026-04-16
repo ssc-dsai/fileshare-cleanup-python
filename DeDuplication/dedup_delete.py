@@ -1,6 +1,6 @@
 # dedup_delete.py
-# Run with: python -m DeDuplication.dedup_delete --excel "deduplication_review_....xlsx" --dry-run
-
+# Run with: python -m DeDuplication.dedup_delete --excel "deduplication_review_20260416_1339.xlsx" --dry-run
+# Run with: python -m DeDuplication.dedup_delete --excel "deduplication_review_20260416_1339.xlsx"
 import argparse
 import logging
 import shutil

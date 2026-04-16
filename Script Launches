@@ -1,8 +1,8 @@
 python -c "from project_config import ensure_directories; print('All folders ready!')"
 python start_ollama.py
 python -m DeDuplication.0_dedup_analysis
-python -m DeDuplication.dedup_delete --excel "deduplication_review_20260401_1134.xlsx" --dry-run
-python -m DeDuplication.dedup_delete --excel "deduplication_review_20260401_1134.xlsx"
+python -m DeDuplication.dedup_delete --excel "deduplication_review_20260416_1339.xlsx" --dry-run
+python -m DeDuplication.dedup_delete --excel "deduplication_review_20260416_1339.xlsx"
 python -m Ingestion.1_Ingestion
 python -m Classification.2_Classification
 python -m Metadata_Placeholder.4_placeholder_creator --excel "C:\JAY_DOCS\classification_results\classification_results.xlsx"

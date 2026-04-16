@@ -1,7 +1,9 @@
 # Classification/enrichers/embedding_classifier.py
 """
-Staged hierarchical semantic classification using full descriptions.
-Adds smart excerpts. Document Type is protected from being overwritten.
+Improved staged hierarchical semantic classification.
+- Uses FULL descriptions for Function and Sub-Function
+- Uses Records column (with fallback to Business_Process) for BProcess excerpt
+- Returns up to 500-character matching excerpts
 """
 
 import logging
@@ -16,16 +18,19 @@ from ..config_Classification import HIERARCHY_COLUMNS
 logger = logging.getLogger(__name__)
 
 
-def _smart_excerpt(full_text: str, document_text: str, max_chars: int = 1000) -> str:
-    if not full_text.strip():
+def _smart_excerpt(full_text: str, document_text: str, max_chars: int = 500) -> str:
+    """Extract up to 500 characters of the most relevant matching sentences."""
+    if not full_text or not full_text.strip():
         return ""
 
+    # Split into sentences
     sentences = re.split(r'(?<=[.!?])\s+', full_text.strip())
-    sentences = [s.strip() for s in sentences if s.strip()]
+    sentences = [s.strip() for s in sentences if len(s.strip()) > 10]
 
     if not sentences:
         return full_text[:max_chars]
 
+    # Simple overlap scoring
     doc_words = set(re.findall(r'\w+', document_text.lower()))
     scored = []
     for sent in sentences:
@@ -33,15 +38,17 @@ def _smart_excerpt(full_text: str, document_text: str, max_chars: int = 1000) ->
         overlap = len(sent_words & doc_words)
         scored.append((overlap, sent))
 
+    # Sort by overlap score
     scored.sort(reverse=True, key=lambda x: x[0])
 
+    # Build excerpt
     excerpt_parts = []
     current_len = 0
     for _, sent in scored:
-        if current_len + len(sent) + 1 > max_chars and excerpt_parts:
+        if current_len + len(sent) + 2 > max_chars and excerpt_parts:
             break
         excerpt_parts.append(sent)
-        current_len += len(sent) + 1
+        current_len += len(sent) + 2
 
     excerpt = " ".join(excerpt_parts).strip()
     return excerpt[:max_chars] if len(excerpt) > max_chars else excerpt
@@ -55,24 +62,21 @@ def semantic_match_with_embedding(
     high_threshold: float = 0.55,
     medium_threshold: float = 0.35,
     max_text_chars: int = 1200,
-    excerpt_length: int = 1000
+    excerpt_length: int = 500
 ) -> dict:
     """
-    Staged hierarchical classification.
-    Document Type is explicitly protected and never overwritten.
+    Staged classification with improved BProcess excerpt logic.
     """
     if hierarchy_df.empty or embedder is None:
-        logger.warning("Hierarchy empty or no embedder → unknown classification")
         return _fallback_unknown()
 
     text_to_embed = text.strip()[:max_text_chars]
     if len(text_to_embed) < 40:
-        logger.info("Text too short for meaningful embedding → unknown")
         return _fallback_unknown()
 
     doc_emb = embedder.encode(text_to_embed, normalize_embeddings=True).reshape(1, -1)
 
-    # Stage 1: Function
+    # Stage 1: Function (full description)
     func_col = "Function_Desc_EN"
     descriptions = hierarchy_df[func_col].fillna("").astype(str)
     valid_mask = descriptions.str.strip().astype(bool)
@@ -94,7 +98,7 @@ def semantic_match_with_embedding(
 
     func_excerpt = _smart_excerpt(best_row[func_col], text, excerpt_length)
 
-    # Stage 2: Sub-Function
+    # Stage 2: Sub-Function (full description)
     sub_col = "Sub-Function_Desc_EN"
     sub_mask = (hierarchy_df["Function_EN"] == best_row["Function_EN"]) & hierarchy_df[sub_col].notna()
     sub_df = hierarchy_df[sub_mask]
@@ -114,13 +118,17 @@ def semantic_match_with_embedding(
         else:
             sub_excerpt = "[Low confidence sub-function match]"
 
-    # Stage 3: Records excerpt
-    records_col = "Records"
-    records_text = best_row[records_col] if pd.notna(best_row[records_col]) else ""
-    records_excerpt = _smart_excerpt(records_text, text, excerpt_length)
+    # Stage 3: Business Process / Records excerpt (IMPROVED)
+    # Prefer "Records" column first, fallback to Business_Process_EN
+    records_text = ""
+    if pd.notna(best_row.get("Records")) and str(best_row["Records"]).strip():
+        records_text = str(best_row["Records"])
+    elif pd.notna(best_row.get("Business_Process_EN")) and str(best_row["Business_Process_EN"]).strip():
+        records_text = str(best_row["Business_Process_EN"])
 
-    # Build result — ONLY hierarchy columns + excerpts.
-    # Do NOT include or touch "Document Type / Type de document"
+    bprocess_excerpt = _smart_excerpt(records_text, text, excerpt_length)
+
+    # Build final result
     result = {}
     for col in HIERARCHY_COLUMNS:
         if col in best_row and pd.notna(best_row[col]):
@@ -129,7 +137,7 @@ def semantic_match_with_embedding(
     result.update({
         "Function_Match_Excerpt": func_excerpt,
         "Sub_Function_Match_Excerpt": sub_excerpt,
-        "Records_Match_Excerpt": records_excerpt,
+        "BProcess-Match_Excerpt": bprocess_excerpt,
         "overall_confidence": round(conf, 3),
         "confidence_category": "High" if conf >= high_threshold else "Medium" if conf >= medium_threshold else "Low",
         "needs_review": "No" if conf >= medium_threshold else "Yes"
@@ -149,7 +157,7 @@ def _fallback_unknown() -> dict:
         "Business_Process_FR": "Inconnu",
         "Function_Match_Excerpt": "",
         "Sub_Function_Match_Excerpt": "",
-        "Records_Match_Excerpt": "",
+        "BProcess-Match_Excerpt": "",
         "overall_confidence": 0.0,
         "confidence_category": "Low",
         "needs_review": "Yes",
