@@ -1,0 +1,22 @@
+# requirements.txt - Clean & Curated for Team Use
+# Generated: April 2026 - Main dependencies for FileShare-CleanUp
+
+pandas>=2.2.0
+openpyxl>=3.1.0
+PyMuPDF>=1.24.0
+python-docx>=1.1.0
+python-pptx>=1.0.0
+pytesseract>=0.3.10
+Pillow>=10.0.0
+sentence-transformers>=3.0.0
+tqdm>=4.66.0
+json-repair>=0.25.0
+pywin32>=306; sys_platform == 'win32'
+spacy>=3.7.0
+
+# spaCy language models (install separately after spacy)
+# Run once after installing spacy:
+# python -m spacy download en_core_web_sm
+# python -m spacy download fr_core_news_sm
+
+GitPython>=3.1.0

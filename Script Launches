@@ -8,9 +8,6 @@ python -m Classification.2_Classification
 python -m Metadata_Placeholder.4_placeholder_creator --excel "C:\JAY_DOCS\classification_results\classification_results.xlsx"
 python -m Metadata_Injector.5_metadata_injector
 python -m Litigation.litigation_pipeline
-
 python -m Litigation.litigation_ingest --input_folder "C:\JAY_DOCS\Litigation_Packages"
 python -m Litigation.6_litigation_report_generator
-
-
 python run_full_pipeline.py
